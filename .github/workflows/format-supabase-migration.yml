@@ -1,0 +1,33 @@
+name: Format Supabase migration files
+
+on:
+  push:
+    branches: [feat/supabase-postgres-adapter]
+    paths: [.github/workflows/format-supabase-migration.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - name: Format only changed source and documentation
+        run: pnpm exec prettier --write docs/deployment.md README.md scripts/development-env.ts tests/runtime/database-server.ts tests/staff.test.ts
+      - name: Commit formatting
+        run: |
+          git diff --check
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/deployment.md README.md scripts/development-env.ts tests/runtime/database-server.ts tests/staff.test.ts
+            git commit -m "style: format Supabase migration source and docs"
+            git push origin HEAD:feat/supabase-postgres-adapter
+          fi
