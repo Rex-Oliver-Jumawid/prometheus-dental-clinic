@@ -80,10 +80,11 @@ export async function mutateStaff(
   const newHash = input.newHash ?? null;
   // A separate first statement is essential: the next READ COMMITTED statement
   // gets a fresh snapshot after the lock wait. A count inside a single concurrent
-  // UPDATE/CTE can see stale administrators. HTTP batch transactions are supported.
-  const [, result] = await db.batch([
-    db.execute(sql`LOCK TABLE auth_user IN SHARE ROW EXCLUSIVE MODE`),
-    db.execute<{ status: MutationStatus }>(sql`
+  // UPDATE/CTE can see stale administrators. Both statements must execute on
+  // the same connection in one READ COMMITTED transaction.
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`LOCK TABLE auth_user IN SHARE ROW EXCLUSIVE MODE`);
+    return tx.execute<{ status: MutationStatus }>(sql`
       WITH actor AS MATERIALIZED (
         SELECT u.* FROM auth_user u JOIN auth_session s ON s.user_id = u.id
         WHERE u.id = ${actorId} AND s.id = ${sessionId} AND s.expires_at > now()
@@ -130,8 +131,8 @@ export async function mutateStaff(
         INSERT INTO staff_audit (actor_id, target_id, action)
         SELECT ${actorId}, id, ${action} FROM changed RETURNING id
       ) SELECT status FROM decision
-    `),
-  ]);
+    `);
+  });
   const status = result.rows[0]?.status;
   if (!status) throw new Error('Missing lifecycle result');
   return status;

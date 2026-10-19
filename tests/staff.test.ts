@@ -6,12 +6,13 @@ const state = vi.hoisted(() => ({
   banned: false,
   passwordChangeRequired: false,
   execute: vi.fn(),
-  batch: vi.fn(),
+  transaction: vi.fn(),
+  transactionExecute: vi.fn(),
   hash: vi.fn(),
   verify: vi.fn(),
 }));
 vi.mock('../server/db/client', () => ({
-  createDatabase: () => ({ execute: state.execute, batch: state.batch }),
+  createDatabase: () => ({ execute: state.execute, transaction: state.transaction }),
 }));
 vi.mock('../server/features/auth/auth', () => ({
   createAuth: () => ({
@@ -68,7 +69,10 @@ beforeEach(() => {
   state.execute.mockResolvedValue({
     rows: [{ password: 'stored-hash', count: 1 }],
   });
-  state.batch.mockResolvedValue([{ rows: [] }, { rows: [{ status: 'ok' }] }]);
+  state.transaction.mockImplementation(async (run) =>
+    run({ execute: state.transactionExecute }),
+  );
+  state.transactionExecute.mockResolvedValue({ rows: [{ status: 'ok' }] });
   state.hash.mockResolvedValue('new-hash');
   state.verify.mockResolvedValue(true);
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -91,7 +95,7 @@ describe('Staff lifecycle API', () => {
         );
     }
     expect(state.execute).not.toHaveBeenCalled();
-    expect(state.batch).not.toHaveBeenCalled();
+    expect(state.transaction).not.toHaveBeenCalled();
   });
   it('lists only safe account fields with bounded pagination', async () => {
     state.execute.mockResolvedValue({
@@ -128,7 +132,8 @@ describe('Staff lifecycle API', () => {
     'allows admin %s with an empty body',
     async (action) => {
       expect((await request(`/employee/${action}`, {})).status).toBe(200);
-      expect(state.batch).toHaveBeenCalledOnce();
+      expect(state.transaction).toHaveBeenCalledOnce();
+      expect(state.transactionExecute).toHaveBeenCalledTimes(2);
     },
   );
   it.each(['deactivate', 'reactivate', 'revoke-sessions', 'recover-password'])(
@@ -146,7 +151,7 @@ describe('Staff lifecycle API', () => {
         (await request(`/employee/${action}`, { ...body, role: 'admin' }))
           .status,
       ).toBe(400);
-      expect(state.batch).not.toHaveBeenCalled();
+      expect(state.transaction).not.toHaveBeenCalled();
     },
   );
   it('verifies the acting administrator before recovery and returns no credential material', async () => {
@@ -170,7 +175,7 @@ describe('Staff lifecycle API', () => {
         })
       ).status,
     ).toBe(400);
-    expect(state.batch).toHaveBeenCalledOnce();
+    expect(state.transaction).toHaveBeenCalledOnce();
   });
   it('allows staff to change only their own password and validates credentials', async () => {
     state.role = 'staff';
@@ -199,7 +204,7 @@ describe('Staff lifecycle API', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('60');
     expect(state.verify).not.toHaveBeenCalled();
-    expect(state.batch).not.toHaveBeenCalled();
+    expect(state.transaction).not.toHaveBeenCalled();
   });
   it('restricts recovered users to session inspection, password change and logout', async () => {
     state.role = 'staff';
@@ -236,7 +241,7 @@ describe('Staff lifecycle API', () => {
     async (action) => {
       state.banned = true;
       expect((await request(`/employee/${action}`, {})).status).toBe(403);
-      expect(state.batch).not.toHaveBeenCalled();
+      expect(state.transaction).not.toHaveBeenCalled();
     },
   );
   it.each([
@@ -245,11 +250,11 @@ describe('Staff lifecycle API', () => {
     ['conflict', 409],
     ['forbidden', 403],
   ] as const)('translates %s to a safe error', async (status, code) => {
-    state.batch.mockResolvedValue([{ rows: [] }, { rows: [{ status }] }]);
+    state.transactionExecute.mockResolvedValue({ rows: [{ status }] });
     expect((await request('/employee/deactivate', {})).status).toBe(code);
   });
   it('sanitizes unexpected database failures', async () => {
-    state.batch.mockRejectedValue(new Error('private credential material'));
+    state.transaction.mockRejectedValue(new Error('private credential material'));
     const response = await request('/employee/deactivate', {});
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: 'Internal server error' });
@@ -268,6 +273,6 @@ describe('Staff lifecycle API', () => {
       expect([400, 413]).toContain(response.status);
       expect(await response.text()).not.toContain('private');
     }
-    expect(state.batch).not.toHaveBeenCalled();
+    expect(state.transaction).not.toHaveBeenCalled();
   });
 });

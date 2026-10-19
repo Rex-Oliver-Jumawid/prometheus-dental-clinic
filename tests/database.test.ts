@@ -1,6 +1,20 @@
-import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vitest';
 import { createDatabase } from '../server/db/client';
+
+const state = vi.hoisted(() => ({
+  pools: [] as Array<Record<string, unknown>>,
+}));
+
+vi.mock('pg', () => ({
+  default: {
+    Pool: class {
+      constructor(options: Record<string, unknown>) {
+        state.pools.push(options);
+      }
+      on() {}
+    },
+  },
+}));
 
 describe('Server database client', () => {
   it.each(['', '   '])(
@@ -12,51 +26,38 @@ describe('Server database client', () => {
     },
   );
 
-  it('queries over HTTP using the connection supplied by each request', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
-      Response.json({
-        fields: [{ name: 'value', dataTypeID: 23 }],
-        rows: [['1']],
-        rowCount: 1,
-        command: 'SELECT',
-      }),
+  it.each([
+    'not-a-url',
+    'https://user:password@example.test/postgres',
+    'postgresql://example.test/postgres',
+    'postgresql://user:password@example.test/',
+  ])('rejects an invalid database connection', (url) => {
+    expect(() => createDatabase({ DATABASE_URL: url })).toThrow(
+      'DATABASE_URL is invalid',
     );
-    vi.stubGlobal('fetch', fetchMock);
+  });
 
-    const firstUrl =
-      'postgresql://test:placeholder@first.example.invalid/clinic?sslmode=require';
-    const secondUrl =
-      'postgresql://test:placeholder@second.example.invalid/clinic?sslmode=require';
-    const first = createDatabase({ DATABASE_URL: firstUrl });
-    const second = createDatabase({ DATABASE_URL: secondUrl });
-    expect(fetchMock).not.toHaveBeenCalled();
+  it('creates one bounded pool per server credential and reuses it', () => {
+    const first =
+      'postgresql://postgres.first:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require';
+    const second =
+      'postgresql://postgres.second:secret@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require';
+    const before = state.pools.length;
 
-    const result = await first.execute(sql`select ${1} as value`);
-    await second.execute(sql`select ${1} as value`);
+    createDatabase({ DATABASE_URL: first });
+    createDatabase({ DATABASE_URL: first });
+    createDatabase({ DATABASE_URL: second });
 
-    expect(result.rows).toEqual([{ value: 1 }]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      'https://api.example.invalid/sql',
-    );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      'https://api.example.invalid/sql',
-    );
-    expect(
-      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get(
-        'Neon-Connection-String',
-      ),
-    ).toContain(firstUrl);
-    expect(
-      new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get(
-        'Neon-Connection-String',
-      ),
-    ).toContain(secondUrl);
-    expect(fetchMock.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ query: 'select $1 as value', params: ['1'] }),
-      }),
-    );
+    expect(state.pools).toHaveLength(before + 2);
+    expect(state.pools.at(-2)).toMatchObject({
+      connectionString: first,
+      max: 1,
+      allowExitOnIdle: true,
+    });
+    expect(state.pools.at(-1)).toMatchObject({
+      connectionString: second,
+      max: 1,
+      allowExitOnIdle: true,
+    });
   });
 });
