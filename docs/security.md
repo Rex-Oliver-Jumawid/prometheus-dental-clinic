@@ -50,3 +50,16 @@ deployment access controls.
 Record the checks and evidence in the generated application's verification
 notes. Authentication, authorization, persistence, backups, monitoring, and
 their operating costs remain application-specific responsibilities.
+
+## Supabase-specific exposure
+
+The current application uses Better Auth on the server. Supabase's
+PostgREST `anon` and `authenticated` roles must not be able to read or
+mutate any patient, account, appointment, clinical or audit tables.
+On a dedicated project run
+[supabase-lockdown.sql](../scripts/supabase-lockdown.sql) before and after
+migrations and verify all ten application tables have no SELECT grants to
+either API role. Continue to protect the database URL as a server-only secret.
+Using the default `postgres` superuser for application requests is a
+temporary test-only setup; provision and verify a least-privilege runtime
+role before any real patient information is stored.

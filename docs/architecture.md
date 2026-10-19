@@ -11,7 +11,7 @@ imports prevent the extensionless ESM failure fixed on the working preview branc
 SPA fallback. API responses retain JSON errors and Hono security headers. Other
 requests receive static security headers, then existing files or `index.html`
 for TanStack navigation. Static delivery does not invoke the API. Function
-compute is in Singapore (`sin1`), near the Neon database.
+compute is in Singapore (`sin1`), near the Singapore Supabase region when available.
 
 ## Boundaries and organization
 
@@ -50,24 +50,24 @@ See [authentication](authentication.md).
 
 ## Persistence
 
-`server/db/client.ts` creates request-scoped Drizzle clients with Neon's HTTP
-driver and a server-only pooled `DATABASE_URL`. Health does not query the database.
-HTTP batch transactions work; interactive transaction callbacks do not.
-Staff lifecycle mutations acquire an account-table write lock in the first
-batch statement, then recheck authority and last-admin eligibility in a fresh
-READ COMMITTED snapshot. Account changes, session revocation and audit insertion
-commit together. See [staff lifecycle](staff-lifecycle.md).
+`server/db/client.ts` provides a request-scoped Drizzle wrapper around a
+single reusable `pg` Pool per server credential. It uses Supabase PostgreSQL
+transaction pooling with unnamed statements and a limit of one app connection
+per warm Vercel instance. The database URL is never exposed to the browser.
+Interactive transactions are supported.
 
-`server/db/schema.ts` owns auth tables and exports feature-owned tables. Reviewed
-SQL preserves [appointment exclusion constraints](appointments.md), restrictive
-clinical foreign keys and the [atomic revision trigger](dental-records.md).
-No schema or migration changes are part of the runtime migration.
+Staff lifecycle mutations lock `auth_user` before reading a fresh
+READ COMMITTED snapshot in the same transaction. The account update, session
+revocation and audit entry commit atomically. Clinical history triggers and
+the dentist exclusion constraint are preserved from the existing migrations.
 
-Drizzle Kit uses direct `DATABASE_URL_UNPOOLED` for separate, operator-run
-migrations. `.env.local`, optional `.env`, then process variables supply local
-configuration in increasing priority. `neon.ts` provisions no additional services.
-Reuse project `muddy-boat-93080753`, development branch `br-red-sun-b3nj2cwd` and
-`prometheus_dental_clinic`; never use production for synthetic verification.
+Drizzle Kit reads the separate `DATABASE_URL_UNPOOLED` only for deliberate
+operator-run migrations to a new empty database; no migration runs in builds
+or requests. The SQL schema still uses the `public` namespace, so Supabase's
+`anon` and `authenticated` PostgREST roles are explicitly revoked before
+and after migration. Better Auth remains the application's authentication
+source; no Supabase Auth or client-side database API is used. See
+[Supabase setup](supabase-setup.md).
 
 ## Development and verification
 

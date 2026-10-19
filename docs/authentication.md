@@ -1,13 +1,13 @@
 # Staff authentication
 
-Better Auth 1.7.7 runs in Hono on Node.js using Drizzle and the existing Neon HTTP
-driver. Interactive adapter transactions stay disabled. Public signup remains
+Better Auth 1.7.7 runs in Hono on Node.js using Drizzle and the PostgreSQL node-postgres
+driver. Interactive adapter transactions are enabled. Public signup remains
 disabled; account creation is administrator-only.
 
 ## Local setup
 
 Add `BETTER_AUTH_SECRET` (a random value of at least 32 characters) and exact
-`BETTER_AUTH_URL=http://127.0.0.1:5173` to ignored `.env.local` alongside the Neon
+`BETTER_AUTH_URL=http://127.0.0.1:5173` to ignored `.env.local` alongside the Supabase
 variables. See [.env.example](../.env.example). Never store secrets in browser
 variables or logs. For `pnpm preview`, supply `BETTER_AUTH_URL=http://127.0.0.1:4180`
 in the process environment. Keep cookies and auth URLs specific to each scope.
@@ -70,7 +70,7 @@ harness accepts synthetic IP headers for isolated rate-limit verification.
 ## Verification
 
 `pnpm auth:verify` launches a loopback Node test server, confirms the guarded
-Neon development connection before SQL, and tests password hashing, login,
+Supabase test database connection before SQL, and tests password hashing, login,
 sessions, staff/admin permissions, account creation, CSRF, expiry, demotion,
 logout and persistent rate limits. Random synthetic accounts are cleaned up in
 `finally`. No fixture endpoint is included in `api/index.ts`.
