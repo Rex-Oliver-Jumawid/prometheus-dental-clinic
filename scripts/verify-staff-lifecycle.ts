@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { app } from '../server/app.js';
 import { createDatabase } from '../server/db/client.js';
 import {
