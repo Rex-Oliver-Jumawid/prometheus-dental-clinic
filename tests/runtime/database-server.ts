@@ -23,44 +23,40 @@ app.get('/api/__verify/database', async (c) => {
 
   const db = createDatabase(c.env);
   const result = await db.execute(sql`SELECT 1 AS value`);
-  const batch = await db.batch([
-    db.execute<{ value: number; transaction: string }>(
+  const transaction = await db.transaction(async (tx) => {
+    const first = await tx.execute<{ value: number; transaction: string }>(
       sql`SELECT 1 AS value, txid_current()::text AS transaction`,
-    ),
-    db.execute<{ value: number; transaction: string }>(
-      sql`SELECT 2 AS value, txid_current()::text AS transaction`,
-    ),
-  ]);
-
-  let failedBatchRejected = false;
-  try {
-    await db.batch([db.execute(sql`SELECT 1`), db.execute(sql`SELECT 1 / 0`)]);
-  } catch {
-    failedBatchRejected = true;
-  }
-
-  let interactiveTransactionsUnsupported = false;
-  try {
-    await db.transaction(async (transaction) =>
-      transaction.execute(sql`SELECT 1`),
     );
-  } catch (error) {
-    interactiveTransactionsUnsupported =
-      error instanceof Error &&
-      error.message === 'No transactions support in neon-http driver';
+    const second = await tx.execute<{ value: number; transaction: string }>(
+      sql`SELECT 2 AS value, txid_current()::text AS transaction`,
+    );
+    return [first, second] as const;
+  });
+
+  let failedTransactionRejected = false;
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1`);
+      await tx.execute(sql`SELECT 1 / 0`);
+    });
+  } catch {
+    failedTransactionRejected = true;
   }
 
   const recovered = await db.execute(sql`SELECT 1 AS value`);
   return c.json({
     credentialsMatch: true,
     selectOne: result.rows[0]?.value === 1,
-    batchValues: [batch[0].rows[0]?.value, batch[1].rows[0]?.value],
-    batchSharesTransaction:
-      typeof batch[0].rows[0]?.transaction === 'string' &&
-      batch[0].rows[0]?.transaction === batch[1].rows[0]?.transaction,
-    failedBatchRejected,
+    transactionValues: [
+      transaction[0].rows[0]?.value,
+      transaction[1].rows[0]?.value,
+    ],
+    statementsShareTransaction:
+      typeof transaction[0].rows[0]?.transaction === 'string' &&
+      transaction[0].rows[0]?.transaction ===
+        transaction[1].rows[0]?.transaction,
+    failedTransactionRejected,
     recoveredAfterFailure: recovered.rows[0]?.value === 1,
-    interactiveTransactionsUnsupported,
   });
 });
 

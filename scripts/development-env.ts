@@ -3,19 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 
 // Operator-only guard shared by synthetic-data tools; never deployed.
+// A test run must never accidentally target an unrelated or live clinic.
 export function developmentEnv(origin = 'http://127.0.0.1:4180') {
-  const context: unknown = JSON.parse(readFileSync('.neon', 'utf8'));
-  assert.ok(
-    context &&
-      typeof context === 'object' &&
-      'projectId' in context &&
-      context.projectId === 'muddy-boat-93080753' &&
-      'branch' in context &&
-      context.branch === 'development',
-    'Select the existing Neon development branch',
-  );
   const local = parseEnv(readFileSync('.env.local', 'utf8'));
-  assert.equal(local.NEON_BRANCH, 'development');
+  const ref = local.SUPABASE_PROJECT_REF;
+  assert.match(
+    ref ?? '',
+    /^[a-z0-9]{20}$/,
+    'Select a dedicated Supabase test project',
+  );
   assert.ok(
     local.DATABASE_URL &&
       local.DATABASE_URL_UNPOOLED &&
@@ -29,6 +25,7 @@ export function developmentEnv(origin = 'http://127.0.0.1:4180') {
       'DATABASE_URL',
       'DATABASE_URL_UNPOOLED',
       'BETTER_AUTH_SECRET',
+      'SUPABASE_PROJECT_REF',
     ]) {
       assert.ok(
         !source[key] || source[key] === local[key],
@@ -36,17 +33,28 @@ export function developmentEnv(origin = 'http://127.0.0.1:4180') {
       );
     }
   }
-  const direct = new URL(local.DATABASE_URL_UNPOOLED);
+
   const pooled = new URL(local.DATABASE_URL);
-  assert.equal(
-    direct.hostname,
-    'ep-young-mud-b3vs4k6p.c-4.ap-southeast-1.aws.neon.tech',
+  const migration = new URL(local.DATABASE_URL_UNPOOLED);
+  assert.match(pooled.hostname, /^[a-z0-9-]+\.pooler\.supabase\.com$/);
+  assert.equal(pooled.username, `postgres.${ref}`);
+  assert.equal(pooled.port, '6543');
+  assert.equal(pooled.pathname, '/postgres');
+  const isDirect =
+    migration.hostname === `db.${ref}.supabase.co` &&
+    migration.username === 'postgres';
+  const isSessionPooler =
+    migration.hostname === pooled.hostname &&
+    migration.username === `postgres.${ref}`;
+  assert.ok(
+    isDirect || isSessionPooler,
+    'Migration URL must belong to the same project',
   );
-  assert.equal(pooled.hostname, direct.hostname.replace('.c-4', '-pooler.c-4'));
-  assert.equal(direct.pathname, '/prometheus_dental_clinic');
-  assert.equal(pooled.pathname, direct.pathname);
-  assert.equal(direct.searchParams.get('sslmode'), 'require');
+  assert.ok(migration.port === '' || migration.port === '5432');
+  assert.equal(migration.pathname, '/postgres');
   assert.equal(pooled.searchParams.get('sslmode'), 'require');
+  assert.equal(migration.searchParams.get('sslmode'), 'require');
+
   const url = new URL(origin);
   assert.equal(url.origin, origin);
   assert.ok(

@@ -90,11 +90,10 @@ export function authOptions(
 export function createAuth(env: ServerEnv) {
   return betterAuth({
     ...authOptions(env),
-    // Neon's HTTP adapter cannot use interactive transactions.
+    // node-postgres supports Better Auth's atomic interactive transactions.
     database: drizzleAdapter(createDatabase(env), {
       provider: 'pg',
       schema,
-      transaction: false,
     }),
   });
 }
