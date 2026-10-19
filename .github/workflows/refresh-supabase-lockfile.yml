@@ -1,0 +1,31 @@
+name: Refresh Supabase dependency lockfile
+
+on:
+  push:
+    branches: [feat/supabase-postgres-adapter]
+    paths: [.github/workflows/refresh-supabase-lockfile.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+      - name: Commit pnpm-generated lockfile
+        run: |
+          git diff --check
+          if ! git diff --quiet -- pnpm-lock.yaml; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore: regenerate pnpm lockfile for Supabase driver"
+            git push origin HEAD:feat/supabase-postgres-adapter
+          fi
