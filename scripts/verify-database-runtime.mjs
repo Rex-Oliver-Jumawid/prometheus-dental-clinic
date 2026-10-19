@@ -58,14 +58,13 @@ try {
   assert.deepEqual(await response.json(), {
     credentialsMatch: true,
     selectOne: true,
-    batchValues: [1, 2],
-    batchSharesTransaction: true,
-    failedBatchRejected: true,
+    transactionValues: [1, 2],
+    statementsShareTransaction: true,
+    failedTransactionRejected: true,
     recoveredAfterFailure: true,
-    interactiveTransactionsUnsupported: true,
   });
   console.log(
-    'PASS: development bindings, SELECT 1, HTTP batch transaction, failure recovery, and expected interactive-transaction rejection in Node.js',
+    'PASS: Supabase development bindings, SELECT 1, shared interactive transaction, rollback on failure, and query recovery in Node.js',
   );
 } finally {
   if (child.exitCode === null && child.signalCode === null && child.pid) {
