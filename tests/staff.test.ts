@@ -12,7 +12,10 @@ const state = vi.hoisted(() => ({
   verify: vi.fn(),
 }));
 vi.mock('../server/db/client', () => ({
-  createDatabase: () => ({ execute: state.execute, transaction: state.transaction }),
+  createDatabase: () => ({
+    execute: state.execute,
+    transaction: state.transaction,
+  }),
 }));
 vi.mock('../server/features/auth/auth', () => ({
   createAuth: () => ({
@@ -254,7 +257,9 @@ describe('Staff lifecycle API', () => {
     expect((await request('/employee/deactivate', {})).status).toBe(code);
   });
   it('sanitizes unexpected database failures', async () => {
-    state.transaction.mockRejectedValue(new Error('private credential material'));
+    state.transaction.mockRejectedValue(
+      new Error('private credential material'),
+    );
     const response = await request('/employee/deactivate', {});
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: 'Internal server error' });

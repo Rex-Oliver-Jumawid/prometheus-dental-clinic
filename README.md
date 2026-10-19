@@ -49,18 +49,18 @@ Use a separate limited runtime role before handling real patient data.
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm dev` | Vite and Hono Node development |
-| `pnpm check` | Typecheck, lint, formatting, tests and build |
-| `pnpm audit --audit-level=high` | High-severity dependency audit |
-| `pnpm db:generate` | Generate and review schema changes, not needed for first setup |
-| `pnpm db:migrate` | Apply checked-in migrations to the selected database |
-| `pnpm db:verify` | Guarded live SQL and transaction checks on a dedicated test project |
-| `pnpm auth:verify` | Guarded live login and session verification |
-| `pnpm workflows:verify` | Guarded synthetic clinic workflows with cleanup |
-| `pnpm auth:bootstrap` | Create first *test* administrator if the auth table is empty |
-| `pnpm preview` | Build and serve a local production preview |
+| Command                         | Purpose                                                             |
+| ------------------------------- | ------------------------------------------------------------------- |
+| `pnpm dev`                      | Vite and Hono Node development                                      |
+| `pnpm check`                    | Typecheck, lint, formatting, tests and build                        |
+| `pnpm audit --audit-level=high` | High-severity dependency audit                                      |
+| `pnpm db:generate`              | Generate and review schema changes, not needed for first setup      |
+| `pnpm db:migrate`               | Apply checked-in migrations to the selected database                |
+| `pnpm db:verify`                | Guarded live SQL and transaction checks on a dedicated test project |
+| `pnpm auth:verify`              | Guarded live login and session verification                         |
+| `pnpm workflows:verify`         | Guarded synthetic clinic workflows with cleanup                     |
+| `pnpm auth:bootstrap`           | Create first _test_ administrator if the auth table is empty        |
+| `pnpm preview`                  | Build and serve a local production preview                          |
 
 The synthetic-data commands require a dedicated Supabase test project and
 matching project identity in `.env.local`. They refuse unexpected credentials.

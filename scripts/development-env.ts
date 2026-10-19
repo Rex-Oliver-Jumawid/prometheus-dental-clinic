@@ -7,7 +7,11 @@ import { parseEnv } from 'node:util';
 export function developmentEnv(origin = 'http://127.0.0.1:4180') {
   const local = parseEnv(readFileSync('.env.local', 'utf8'));
   const ref = local.SUPABASE_PROJECT_REF;
-  assert.match(ref ?? '', /^[a-z0-9]{20}$/, 'Select a dedicated Supabase test project');
+  assert.match(
+    ref ?? '',
+    /^[a-z0-9]{20}$/,
+    'Select a dedicated Supabase test project',
+  );
   assert.ok(
     local.DATABASE_URL &&
       local.DATABASE_URL_UNPOOLED &&
@@ -42,7 +46,10 @@ export function developmentEnv(origin = 'http://127.0.0.1:4180') {
   const isSessionPooler =
     migration.hostname === pooled.hostname &&
     migration.username === `postgres.${ref}`;
-  assert.ok(isDirect || isSessionPooler, 'Migration URL must belong to the same project');
+  assert.ok(
+    isDirect || isSessionPooler,
+    'Migration URL must belong to the same project',
+  );
   assert.ok(migration.port === '' || migration.port === '5432');
   assert.equal(migration.pathname, '/postgres');
   assert.equal(pooled.searchParams.get('sslmode'), 'require');

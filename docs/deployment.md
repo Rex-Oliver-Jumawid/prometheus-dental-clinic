@@ -10,11 +10,11 @@ it does not serve this website.
 
 ## Vercel environment scopes
 
-| Scope | Environment |
-| --- | --- |
-| Local | Ignored `.env.local`: Supabase pooler URL, direct migration URL, auth secret and localhost origin |
-| Preview | Server-only `DATABASE_URL` for test Supabase, separate `BETTER_AUTH_SECRET` |
-| Production | Distinct production database credentials and auth secret, only after release approval |
+| Scope      | Environment                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| Local      | Ignored `.env.local`: Supabase pooler URL, direct migration URL, auth secret and localhost origin |
+| Preview    | Server-only `DATABASE_URL` for test Supabase, separate `BETTER_AUTH_SECRET`                       |
+| Production | Distinct production database credentials and auth secret, only after release approval             |
 
 Set `DATABASE_URL` to the Supabase **transaction pooler on port 6543**,
 not the Supabase project HTTPS API URL. Use `DATABASE_URL_UNPOOLED` only

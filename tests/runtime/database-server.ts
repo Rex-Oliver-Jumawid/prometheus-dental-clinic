@@ -47,13 +47,16 @@ app.get('/api/__verify/database', async (c) => {
   return c.json({
     credentialsMatch: true,
     selectOne: result.rows[0]?.value === 1,
-    transactionValues: [transaction[0].rows[0]?.value, transaction[1].rows[0]?.value],
+    transactionValues: [
+      transaction[0].rows[0]?.value,
+      transaction[1].rows[0]?.value,
+    ],
     statementsShareTransaction:
       typeof transaction[0].rows[0]?.transaction === 'string' &&
-      transaction[0].rows[0]?.transaction === transaction[1].rows[0]?.transaction,
+      transaction[0].rows[0]?.transaction ===
+        transaction[1].rows[0]?.transaction,
     failedTransactionRejected,
     recoveredAfterFailure: recovered.rows[0]?.value === 1,
-
   });
 });
 
